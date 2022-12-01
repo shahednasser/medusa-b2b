@@ -6,10 +6,10 @@ import clsx from "clsx"
 
 import { useDebounce } from "../../../hooks/use-debounce"
 import ImagePlaceholder from "../../../components/fundamentals/image-placeholder"
-import Table, { TablePagination } from "../../../components/molecules/table"
+import Table from "../../../components/molecules/table"
 import IndeterminateCheckbox from "../../../components/molecules/indeterminate-checkbox"
-import Spinner from "../../../components/atoms/spinner"
 import { formatAmountWithSymbol } from "../../../utils/prices"
+import TableContainer from "../../../components/organisms/table-container"
 
 const PAGE_SIZE = 12
 
@@ -22,13 +22,8 @@ type Props = {
 }
 
 const VariantsTable: React.FC<Props> = (props) => {
-  const {
-    isReplace,
-    regionId,
-    currencyCode,
-    customerId,
-    setSelectedVariants,
-  } = props
+  const { isReplace, regionId, currencyCode, customerId, setSelectedVariants } =
+    props
 
   const [query, setQuery] = useState("")
   const [offset, setOffset] = useState(0)
@@ -121,7 +116,7 @@ const VariantsTable: React.FC<Props> = (props) => {
         ),
         accessor: "amount",
         Cell: ({ row: { original } }) => {
-          if (!original.original_price) {
+          if (!original.original_price_incl_tax) {
             return null
           }
 
@@ -133,14 +128,14 @@ const VariantsTable: React.FC<Props> = (props) => {
                 {showOriginal && (
                   <span className="text-gray-400 line-through">
                     {formatAmountWithSymbol({
-                      amount: original.original_price,
+                      amount: original.original_price_incl_tax,
                       currency: currencyCode,
                     })}
                   </span>
                 )}
                 <span>
                   {formatAmountWithSymbol({
-                    amount: original.calculated_price,
+                    amount: original.calculated_price_incl_tax,
                     currency: currencyCode,
                   })}
                 </span>
@@ -199,14 +194,13 @@ const VariantsTable: React.FC<Props> = (props) => {
               <div className={clsx({ "mr-2": isReplace })}>
                 <IndeterminateCheckbox
                   {...selectProps}
-                  disabled={row.original.inventory_quantity === 0}
                   type={isReplace ? "radio" : "checkbox"}
                   onChange={
                     isReplace
                       ? () => {
-                          toggleAllRowsSelected(false)
-                          toggleRowSelected(row.id, !currentState.checked)
-                        }
+                        toggleAllRowsSelected(false)
+                        toggleRowSelected(row.id, !currentState.checked)
+                      }
                       : selectProps.onChange
                   }
                 />
@@ -224,10 +218,7 @@ const VariantsTable: React.FC<Props> = (props) => {
       return
     }
 
-    const selected = variants.filter(
-      (v) => table.state.selectedRowIds[v.id] && v.inventory_quantity > 0
-    )
-
+    const selected = variants.filter((v) => table.state.selectedRowIds[v.id])
     setSelectedVariants(selected)
   }, [table.state.selectedRowIds, variants])
 
@@ -254,11 +245,28 @@ const VariantsTable: React.FC<Props> = (props) => {
   }
 
   return (
-    <>
+    <TableContainer
+      hasPagination
+      isLoading={isLoading}
+      numberOfRows={PAGE_SIZE}
+      pagingState={{
+        count: count!,
+        offset: offset,
+        pageSize: offset + table.rows.length,
+        title: "Products",
+        currentPage: table.state.pageIndex + 1,
+        pageCount: table.pageCount,
+        nextPage: handleNext,
+        prevPage: handlePrev,
+        hasNext: table.canNextPage,
+        hasPrev: table.canPreviousPage,
+      }}
+    >
       <Table
         immediateSearchFocus
         enableSearch
         searchPlaceholder="Search Product Variants..."
+        searchValue={query}
         handleSearch={handleSearch}
         {...table.getTableProps()}
       >
@@ -273,52 +281,23 @@ const VariantsTable: React.FC<Props> = (props) => {
         ))}
 
         <Table.Body {...table.getTableBodyProps()}>
-          {isLoading ? (
-            <Spinner size="large" />
-          ) : (
-            table.rows.map((row) => {
-              const isDisabled = row.original.inventory_quantity === 0
-
-              table.prepareRow(row)
-              return (
-                <Table.Row
-                  {...row.getRowProps()}
-                  className={isDisabled && "opacity-50 pointer-events-none"}
-                >
-                  {/*TODO: TOOLTIP CSS doesn't work with table layout*/}
-                  {/*<Tooltip*/}
-                  {/*  side="top"*/}
-                  {/*  open={isDisabled ? undefined : false}*/}
-                  {/*  content="This variant is out of stock, and does not allow backorders"*/}
-                  {/*>*/}
-                  {row.cells.map((cell) => {
-                    return (
-                      <Table.Cell {...cell.getCellProps()}>
-                        {cell.render("Cell")}
-                      </Table.Cell>
-                    )
-                  })}
-                  {/*</Tooltip>*/}
-                </Table.Row>
-              )
-            })
-          )}
+          {table.rows.map((row) => {
+            table.prepareRow(row)
+            return (
+              <Table.Row {...row.getRowProps()}>
+                {row.cells.map((cell) => {
+                  return (
+                    <Table.Cell {...cell.getCellProps()}>
+                      {cell.render("Cell")}
+                    </Table.Cell>
+                  )
+                })}
+              </Table.Row>
+            )
+          })}
         </Table.Body>
       </Table>
-      <TablePagination
-        count={count!}
-        limit={PAGE_SIZE}
-        offset={offset}
-        pageSize={offset + table.rows.length}
-        title="Products"
-        currentPage={table.state.pageIndex + 1}
-        pageCount={table.pageCount}
-        nextPage={handleNext}
-        prevPage={handlePrev}
-        hasNext={table.canNextPage}
-        hasPrev={table.canPreviousPage}
-      />
-    </>
+    </TableContainer>
   )
 }
 

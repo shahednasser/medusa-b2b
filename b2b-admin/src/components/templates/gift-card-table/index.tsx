@@ -1,13 +1,13 @@
-import { RouteComponentProps, useLocation } from "@reach/router"
 import clsx from "clsx"
 import { isEmpty } from "lodash"
 import { useAdminGiftCards } from "medusa-react"
 import qs from "qs"
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 import { usePagination, useTable } from "react-table"
 import Spinner from "../../atoms/spinner"
-import Table, { TablePagination } from "../../molecules/table"
-import GiftCardFilters from "../gift-card-filter-dropdown"
+import Table from "../../molecules/table"
+import TableContainer from "../../organisms/table-container"
 import useGiftCardTableColums from "./use-gift-card-column"
 import { useGiftCardFilters } from "./use-gift-card-filters"
 
@@ -15,19 +15,12 @@ const DEFAULT_PAGE_SIZE = 15
 
 const defaultQueryProps = {}
 
-const GiftCardTable: React.FC<RouteComponentProps> = () => {
+const GiftCardTable = () => {
   const location = useLocation()
 
   const {
-    removeTab,
-    setTab,
-    saveTab,
-    availableTabs: filterTabs,
-    activeFilterTab,
     reset,
     paginate,
-    setFilters,
-    filters,
     setQuery: setFreeText,
     queryObject,
     representationObject,
@@ -40,7 +33,9 @@ const GiftCardTable: React.FC<RouteComponentProps> = () => {
   const [query, setQuery] = useState(filtersOnLoad?.query)
   const [numPages, setNumPages] = useState(0)
 
-  const { gift_cards, isLoading, count } = useAdminGiftCards(queryObject)
+  const { gift_cards, isLoading, count } = useAdminGiftCards(queryObject, {
+    keepPreviousData: true,
+  })
 
   useEffect(() => {
     const controlledPageCount = Math.ceil(count! / queryObject.limit)
@@ -122,17 +117,28 @@ const GiftCardTable: React.FC<RouteComponentProps> = () => {
     }
   }
 
-  const clearFilters = () => {
-    reset()
-    setQuery("")
-  }
-
   useEffect(() => {
     refreshWithFilters()
   }, [representationObject])
 
   return (
-    <div className="w-full overflow-y-auto flex flex-col justify-between min-h-[300px] h-full ">
+    <TableContainer
+      isLoading={isLoading}
+      hasPagination
+      numberOfRows={queryObject.limit}
+      pagingState={{
+        count: count!,
+        offset: queryObject.offset,
+        pageSize: queryObject.offset + rows.length,
+        title: "Gift cards",
+        currentPage: pageIndex + 1,
+        pageCount: pageCount,
+        nextPage: handleNext,
+        prevPage: handlePrev,
+        hasNext: canNextPage,
+        hasPrev: canPreviousPage,
+      }}
+    >
       <Table
         filteringOptions={null}
         enableSearch
@@ -153,11 +159,17 @@ const GiftCardTable: React.FC<RouteComponentProps> = () => {
           ))}
         </Table.Head>
         {isLoading || !gift_cards ? (
-          <div className="flex w-full h-full absolute items-center justify-center mt-10">
-            <div className="">
-              <Spinner size={"large"} variant={"secondary"} />
-            </div>
-          </div>
+          <Table.Body {...getTableBodyProps()}>
+            <Table.Row>
+              <Table.Cell colSpan={columns.length}>
+                <div className="flex w-full h-full absolute items-center justify-center mt-10">
+                  <div className="">
+                    <Spinner size={"large"} variant={"secondary"} />
+                  </div>
+                </div>
+              </Table.Cell>
+            </Table.Row>
+          </Table.Body>
         ) : (
           <Table.Body {...getTableBodyProps()}>
             {rows.map((row) => {
@@ -178,20 +190,7 @@ const GiftCardTable: React.FC<RouteComponentProps> = () => {
           </Table.Body>
         )}
       </Table>
-      <TablePagination
-        count={count!}
-        limit={queryObject.limit}
-        offset={queryObject.offset}
-        pageSize={queryObject.offset + rows.length}
-        title="Gift cards"
-        currentPage={pageIndex + 1}
-        pageCount={pageCount}
-        nextPage={handleNext}
-        prevPage={handlePrev}
-        hasNext={canNextPage}
-        hasPrev={canPreviousPage}
-      />
-    </div>
+    </TableContainer>
   )
 }
 

@@ -1,16 +1,22 @@
+import {
+  AdminPostCustomerGroupsGroupReq,
+  AdminPostCustomerGroupsReq,
+  CustomerGroup,
+} from "@medusajs/medusa"
 import React, { useState } from "react"
 import { useForm } from "react-hook-form"
-import { CustomerGroup } from "@medusajs/medusa"
 
-import Modal from "../../../components/molecules/modal"
-import Input from "../../../components/molecules/input"
 import Button from "../../../components/fundamentals/button"
+import Input from "../../../components/molecules/input"
+import Modal from "../../../components/molecules/modal"
 import Metadata, { MetadataField } from "../../../components/organisms/metadata"
 
 type CustomerGroupModalProps = {
   handleClose: () => void
   initialData?: CustomerGroup
-  handleSubmit: (data: CustomerGroup) => void
+  handleSubmit: (
+    data: AdminPostCustomerGroupsReq | AdminPostCustomerGroupsGroupReq
+  ) => void
 }
 
 /*
@@ -46,9 +52,11 @@ function CustomerGroupModal(props: CustomerGroupModalProps) {
       }
     }
 
-    data.metadata = meta
-
-    handleSubmit(data)
+    const toSubmit = {
+      name: data.name,
+      metadata: meta,
+    }
+    handleSubmit(toSubmit)
   }
 
   return (
@@ -66,9 +74,10 @@ function CustomerGroupModal(props: CustomerGroupModalProps) {
             <div className="flex space-x-4">
               <Input
                 label="Title"
-                {...register('name')}
+                {...register("name")}
                 placeholder="Customer group name"
-                required />
+                required
+              />
             </div>
           </div>
 
@@ -99,7 +108,7 @@ function CustomerGroupModal(props: CustomerGroupModalProps) {
         </Modal.Footer>
       </Modal.Body>
     </Modal>
-  );
+  )
 }
 
 export default CustomerGroupModal

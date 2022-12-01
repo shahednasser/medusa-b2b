@@ -1,20 +1,27 @@
-import { RouteComponentProps } from "@reach/router"
-import { navigate } from "gatsby"
+import { JsonViewer } from "@textea/json-viewer"
 import { useAdminStore } from "medusa-react"
-import React from "react"
-import ReactJson from "react-json-view"
+import { useNavigate } from "react-router-dom"
 import BackButton from "../../../components/atoms/back-button"
 import Spinner from "../../../components/atoms/spinner"
 import Tooltip from "../../../components/atoms/tooltip"
 import FeatureToggle from "../../../components/fundamentals/feature-toggle"
 import Section from "../../../components/organisms/section"
+import { useAnalytics } from "../../../context/analytics"
 import { getErrorStatus } from "../../../utils/get-error-status"
 import CurrencyTaxSetting from "./components/currency-tax-setting"
 import DefaultStoreCurrency from "./components/default-store-currency"
 import StoreCurrencies from "./components/store-currencies"
 
-const CurrencySettings = (_props: RouteComponentProps) => {
-  const { store, status, error } = useAdminStore()
+const CurrencySettings = () => {
+  const navigate = useNavigate()
+  const { trackCurrencies } = useAnalytics()
+  const { store, status, error } = useAdminStore({
+    onSuccess: (data) => {
+      trackCurrencies({
+        used_currencies: data.store.currencies.map((c) => c.code),
+      })
+    },
+  })
 
   if (error) {
     let message = "An unknown error occurred"
@@ -36,10 +43,10 @@ const CurrencySettings = (_props: RouteComponentProps) => {
         <p className="inter-base-regular">{message}</p>
 
         <div className="mt-base bg-grey-5 rounded-rounded px-base py-xsmall">
-          <ReactJson
-            name={"Stack Trace"}
-            collapsed={true}
-            src={JSON.parse(JSON.stringify(error))}
+          <JsonViewer
+            rootName="stack_trace"
+            defaultInspectDepth={0}
+            value={JSON.parse(JSON.stringify(error))}
           />
         </div>
       </Section>

@@ -2,12 +2,12 @@ import { useAdminProductTags } from "medusa-react"
 import React, { useState } from "react"
 import Spinner from "../../../../../../components/atoms/spinner"
 import Modal from "../../../../../../components/molecules/modal"
+import { SelectableTable } from "../../../../../../components/templates/selectable-table"
 import useQueryFilters from "../../../../../../hooks/use-query-filters"
 import { DiscountConditionOperator } from "../../../../types"
 import { useDiscountForm } from "../../form/discount-form-context"
 import { defaultQueryProps } from "../shared/common"
 import ConditionOperator from "../shared/condition-operator"
-import { SelectableTable } from "../shared/selectable-table"
 import { TagColumns, TagHeader, TagRow } from "../shared/tags"
 import EditConditionFooter from "./edit-condition-footer"
 
@@ -36,7 +36,7 @@ const EditTagConditionSelector = ({ onClose }) => {
 
   return (
     <>
-      <Modal.Content isLargeModal={true}>
+      <Modal.Content>
         {isLoading ? (
           <Spinner />
         ) : (
@@ -62,7 +62,7 @@ const EditTagConditionSelector = ({ onClose }) => {
           </>
         )}
       </Modal.Content>
-      <Modal.Footer isLargeModal>
+      <Modal.Footer>
         <EditConditionFooter
           type="product_tags"
           items={items}

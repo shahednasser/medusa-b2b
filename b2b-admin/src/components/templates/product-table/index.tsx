@@ -1,13 +1,14 @@
-import { useLocation } from "@reach/router"
 import { isEmpty } from "lodash"
 import { useAdminProducts } from "medusa-react"
 import qs from "qs"
 import React, { useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 import { usePagination, useTable } from "react-table"
+import { useAnalytics } from "../../../context/analytics"
 import { useFeatureFlag } from "../../../context/feature-flag"
 import ProductsFilter from "../../../domain/products/filter-dropdown"
-import Spinner from "../../atoms/spinner"
-import Table, { TablePagination } from "../../molecules/table"
+import Table from "../../molecules/table"
+import TableContainer from "../../organisms/table-container"
 import ProductOverview from "./overview"
 import useProductActions from "./use-product-actions"
 import useProductTableColumn from "./use-product-column"
@@ -16,24 +17,23 @@ import { useProductFilters } from "./use-product-filters"
 const DEFAULT_PAGE_SIZE = 15
 const DEFAULT_PAGE_SIZE_TILE_VIEW = 18
 
-type ProductTableProps = {}
-
 const defaultQueryProps = {
   fields: "id,title,thumbnail,status,handle,collection_id",
   expand:
-    "variants,options,variants.prices,variants.options,collection,tags,type",
+    "variants,options,variants.prices,variants.options,collection,tags,type,images",
   is_giftcard: false,
 }
 
-const ProductTable: React.FC<ProductTableProps> = () => {
+const ProductTable = () => {
   const location = useLocation()
 
   const { isFeatureEnabled } = useFeatureFlag()
+  const { trackNumberOfProducts } = useAnalytics()
 
   let hiddenColumns = ["sales_channel"]
   if (isFeatureEnabled("sales_channels")) {
     defaultQueryProps.expand =
-      "variants,options,variants.prices,variants.options,collection,tags,sales_channels"
+      "variants,options,variants.prices,variants.options,collection,tags,type,images,sales_channels"
     hiddenColumns = []
   }
 
@@ -64,9 +64,15 @@ const ProductTable: React.FC<ProductTableProps> = () => {
     setQuery("")
   }
 
-  const { products, isLoading, isRefetching, count } = useAdminProducts({
-    ...queryObject,
-  })
+  const { products, isLoading, count } = useAdminProducts(
+    {
+      ...queryObject,
+    },
+    {
+      keepPreviousData: true,
+      onSuccess: ({ count }) => trackNumberOfProducts({ count }),
+    }
+  )
 
   useEffect(() => {
     if (typeof count !== "undefined") {
@@ -123,7 +129,7 @@ const ProductTable: React.FC<ProductTableProps> = () => {
     nextPage,
     previousPage,
     // Get the state from the instance
-    state: { pageIndex, pageSize },
+    state: { pageIndex },
   } = useTable(
     {
       columns,
@@ -172,86 +178,70 @@ const ProductTable: React.FC<ProductTableProps> = () => {
   }
 
   return (
-    <div className="w-full h-full overflow-y-auto">
-      <>
-        <Table
-          filteringOptions={
-            <ProductsFilter
-              filters={filters}
-              submitFilters={setFilters}
-              clearFilters={clearFilters}
-              tabs={filterTabs}
-              onTabClick={setTab}
-              activeTab={activeFilterTab}
-              onRemoveTab={removeTab}
-              onSaveTab={saveTab}
-            />
-          }
-          enableSearch
-          handleSearch={setQuery}
-          isLoading={isLoading || isRefetching || !products}
-          {...getTableProps()}
-        >
-          {showList ? (
-            <>
-              <Table.Head>
-                {headerGroups?.map((headerGroup) => (
-                  <Table.HeadRow {...headerGroup.getHeaderGroupProps()}>
-                    {headerGroup.headers.map((col) => (
-                      <Table.HeadCell
-                        className="min-w-[100px]"
-                        {...col.getHeaderProps()}
-                      >
-                        {col.render("Header")}
-                      </Table.HeadCell>
-                    ))}
-                  </Table.HeadRow>
-                ))}
-              </Table.Head>
+    <TableContainer
+      numberOfRows={DEFAULT_PAGE_SIZE}
+      hasPagination
+      pagingState={{
+        count: count!,
+        offset: offs,
+        pageSize: offs + rows.length,
+        title: "Products",
+        currentPage: pageIndex + 1,
+        pageCount: pageCount,
+        nextPage: handleNext,
+        prevPage: handlePrev,
+        hasNext: canNextPage,
+        hasPrev: canPreviousPage,
+      }}
+      isLoading={isLoading}
+    >
+      <Table
+        filteringOptions={
+          <ProductsFilter
+            filters={filters}
+            submitFilters={setFilters}
+            clearFilters={clearFilters}
+            tabs={filterTabs}
+            onTabClick={setTab}
+            activeTab={activeFilterTab}
+            onRemoveTab={removeTab}
+            onSaveTab={saveTab}
+          />
+        }
+        enableSearch
+        searchValue={query}
+        handleSearch={setQuery}
+        {...getTableProps()}
+      >
+        {showList ? (
+          <>
+            <Table.Head>
+              {headerGroups?.map((headerGroup) => (
+                <Table.HeadRow {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map((col) => (
+                    <Table.HeadCell
+                      className="min-w-[100px]"
+                      {...col.getHeaderProps()}
+                    >
+                      {col.render("Header")}
+                    </Table.HeadCell>
+                  ))}
+                </Table.HeadRow>
+              ))}
+            </Table.Head>
 
-              <Table.Body {...getTableBodyProps()}>
-                {rows.map((row) => {
-                  prepareRow(row)
-                  return <ProductRow row={row} {...row.getRowProps()} />
-                })}
-              </Table.Body>
-            </>
-          ) : (
-            <LoadingContainer
-              isLoading={isLoading || isRefetching || !products}
-            >
-              <ProductOverview
-                products={products}
-                toggleListView={setListView}
-              />
-            </LoadingContainer>
-          )}
-        </Table>
-        <TablePagination
-          count={count!}
-          limit={limit}
-          offset={offs}
-          pageSize={offs + rows.length}
-          title="Products"
-          currentPage={pageIndex + 1}
-          pageCount={pageCount}
-          nextPage={handleNext}
-          prevPage={handlePrev}
-          hasNext={canNextPage}
-          hasPrev={canPreviousPage}
-        />
-      </>
-    </div>
-  )
-}
-
-const LoadingContainer = ({ isLoading, children }) => {
-  return isLoading ? (
-    <div className="w-full pt-2xlarge flex items-center justify-center">
-      <Spinner size={"large"} variant={"secondary"} />
-    </div>
-  ) : (
-    children
+            <Table.Body {...getTableBodyProps()}>
+              {rows.map((row) => {
+                prepareRow(row)
+                return <ProductRow row={row} {...row.getRowProps()} />
+              })}
+            </Table.Body>
+          </>
+        ) : (
+          <ProductOverview products={products} toggleListView={setListView} />
+        )}
+      </Table>
+    </TableContainer>
   )
 }
 

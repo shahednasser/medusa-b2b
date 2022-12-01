@@ -1,7 +1,7 @@
 import { Discount } from "@medusajs/medusa"
-import { navigate } from "gatsby"
 import * as React from "react"
 import { useWatch } from "react-hook-form"
+import { useNavigate } from "react-router-dom"
 import Button from "../../../../components/fundamentals/button"
 import CrossIcon from "../../../../components/fundamentals/icons/cross-icon"
 import FocusModal from "../../../../components/molecules/modal/focus-modal"
@@ -12,7 +12,7 @@ import { DiscountRuleType } from "../../types"
 import { useDiscountForm } from "./form/discount-form-context"
 import { DiscountFormValues } from "./form/mappers"
 import { useFormActions } from "./form/use-form-actions"
-import Conditions from "./sections/conditions"
+import DiscountNewConditions from "./sections/conditions"
 import Configuration from "./sections/configuration"
 import DiscountAllocation from "./sections/discount-allocation"
 import DiscountType from "./sections/discount-type"
@@ -31,6 +31,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
   additionalOpen = [],
   isEdit = false,
 }) => {
+  const navigate = useNavigate()
   const notification = useNotification()
   const { handleSubmit, handleReset, control } = useDiscountForm()
 
@@ -159,7 +160,7 @@ const DiscountForm: React.FC<DiscountFormProps> = ({
                 value="conditions"
                 tooltip="Add conditions to your Discount"
               >
-                <Conditions discount={discount} />
+                <DiscountNewConditions discount={discount} />
               </Accordion.Item>
             </Accordion>
           </div>

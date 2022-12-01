@@ -1,6 +1,6 @@
 import clsx from "clsx"
-import { navigate } from "gatsby"
 import React from "react"
+import { useNavigate } from "react-router-dom"
 import Spinner from "../../atoms/spinner"
 import ArrowLeftIcon from "../../fundamentals/icons/arrow-left-icon"
 import ArrowRightIcon from "../../fundamentals/icons/arrow-right-icon"
@@ -13,20 +13,6 @@ type TableRowProps = React.HTMLAttributes<HTMLTableRowElement> & {
   forceDropdown?: boolean
   actions?: ActionType[]
   linkTo?: string
-}
-
-type TablePaginationProps = React.HTMLAttributes<HTMLDivElement> & {
-  title: string
-  currentPage: number
-  pageSize: number
-  count: number
-  offset: number
-  limit: number
-  pageCount: number
-  nextPage: () => void
-  prevPage: () => void
-  hasNext: boolean
-  hasPrev: boolean
 }
 
 type TableCellProps = React.TdHTMLAttributes<HTMLTableCellElement> & {
@@ -48,7 +34,6 @@ export type TableProps = {
   searchPlaceholder?: string
   searchValue?: string
   containerClassName?: string
-  isLoading?: boolean
   handleSearch?: (searchTerm: string) => void
 } & React.HTMLAttributes<HTMLTableElement>
 
@@ -63,8 +48,6 @@ type TableType = {
   Body: TableElement<React.HTMLAttributes<HTMLTableSectionElement>>
   Row: TableElement<TableRowProps>
   Cell: TableElement<TableCellProps>
-  Pagination: React.ForwardRefExoticComponent<TablePaginationProps> &
-    React.RefAttributes<unknown>
 } & TableElement<TableProps>
 
 const Table = React.forwardRef<HTMLTableElement, TableProps>(
@@ -80,7 +63,6 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
       handleSearch,
       filteringOptions,
       containerClassName,
-      isLoading,
       ...props
     },
     ref
@@ -113,16 +95,7 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
             )}
           </div>
         </div>
-        <div
-          className={clsx("relative", {
-            "min-h-[256px]": isLoading,
-          })}
-        >
-          {isLoading && (
-            <div className="flex items-center justify-center absolute inset-0 py-32">
-              <Spinner size={"large"} variant={"secondary"} />
-            </div>
-          )}
+        <div className="relative">
           <table
             ref={ref}
             className={clsx("w-full table-auto", className)}
@@ -225,98 +198,53 @@ Table.Body = React.forwardRef<
 ))
 
 Table.Cell = React.forwardRef<HTMLTableCellElement, TableCellProps>(
-  ({ className, linkTo, children, ...props }, ref) => (
-    <td
-      ref={ref}
-      className={clsx("inter-small-regular h-[40px]", className)}
-      {...props}
-      {...(linkTo && {
-        onClick: (e) => {
-          navigate(linkTo)
-          e.stopPropagation()
-        },
-      })}
-    >
-      {children}
-    </td>
-  )
+  ({ className, linkTo, children, ...props }, ref) => {
+    const navigate = useNavigate()
+    return (
+      <td
+        ref={ref}
+        className={clsx("inter-small-regular h-[40px]", className)}
+        {...props}
+        {...(linkTo && {
+          onClick: (e) => {
+            navigate(linkTo)
+            e.stopPropagation()
+          },
+        })}
+      >
+        {children}
+      </td>
+    )
+  }
 )
 
 Table.Row = React.forwardRef<HTMLTableRowElement, TableRowProps>(
-  ({ className, actions, children, linkTo, forceDropdown, ...props }, ref) => (
-    <tr
-      ref={ref}
-      className={clsx(
-        "inter-small-regular border-t border-b border-grey-20 text-grey-90",
-        className,
-        { "cursor-pointer hover:bg-grey-5": linkTo !== undefined }
-      )}
-      {...props}
-      {...(linkTo && {
-        onClick: () => {
-          navigate(linkTo)
-        },
-      })}
-    >
-      {children}
-      {actions && (
-        <Table.Cell onClick={(e) => e.stopPropagation()} className="w-[32px]">
-          <Actionables forceDropdown={forceDropdown} actions={actions} />
-        </Table.Cell>
-      )}
-    </tr>
-  )
+  ({ className, actions, children, linkTo, forceDropdown, ...props }, ref) => {
+    const navigate = useNavigate()
+    return (
+      <tr
+        ref={ref}
+        className={clsx(
+          "inter-small-regular border-t border-b border-grey-20 text-grey-90",
+          className,
+          { "cursor-pointer hover:bg-grey-5": linkTo !== undefined }
+        )}
+        {...props}
+        {...(linkTo && {
+          onClick: () => {
+            navigate(linkTo)
+          },
+        })}
+      >
+        {children}
+        {actions && (
+          <Table.Cell onClick={(e) => e.stopPropagation()} className="w-[32px]">
+            <Actionables forceDropdown={forceDropdown} actions={actions} />
+          </Table.Cell>
+        )}
+      </tr>
+    )
+  }
 )
-
-export const TablePagination = ({
-  className,
-  title = "Elements",
-  currentPage,
-  pageCount,
-  pageSize,
-  count,
-  offset,
-  nextPage,
-  prevPage,
-  hasNext,
-  hasPrev,
-}: TablePaginationProps) => {
-  const soothedOffset = count > 0 ? offset + 1 : 0
-  const soothedPageCount = Math.max(1, pageCount)
-
-  return (
-    <div
-      className={clsx(
-        "flex w-full justify-between inter-small-regular text-grey-50 mt-14",
-        className
-      )}
-    >
-      <div>{`${soothedOffset} - ${pageSize} of ${count} ${title}`}</div>
-      <div className="flex space-x-4">
-        <div>{`${currentPage} of ${soothedPageCount}`}</div>
-        <div className="flex space-x-4 items-center">
-          <div
-            className={clsx(
-              { ["text-grey-30"]: !hasPrev },
-              { ["cursor-pointer"]: hasPrev }
-            )}
-            onClick={() => prevPage()}
-          >
-            <ArrowLeftIcon />
-          </div>
-          <div
-            className={clsx(
-              { ["text-grey-30"]: !hasNext },
-              { ["cursor-pointer"]: hasNext }
-            )}
-            onClick={() => nextPage()}
-          >
-            <ArrowRightIcon />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default Table

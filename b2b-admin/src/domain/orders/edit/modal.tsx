@@ -1,10 +1,8 @@
 import React, { useContext, useEffect, useState } from "react"
-import { OrderEdit, ProductVariant } from "@medusajs/medusa"
+import { Order, OrderEdit, ProductVariant } from "@medusajs/medusa"
 import {
   useAdminCreateOrderEdit,
   useAdminDeleteOrderEdit,
-  useAdminOrder,
-  useAdminOrderEdit,
   useAdminOrderEditAddLineItem,
   useAdminRequestOrderEditConfirmation,
   useAdminUpdateOrderEdit,
@@ -22,29 +20,29 @@ import SearchIcon from "../../../components/fundamentals/icons/search-icon"
 import { formatAmountWithSymbol } from "../../../utils/prices"
 import InputField from "../../../components/molecules/input"
 import useNotification from "../../../hooks/use-notification"
+import { OrderEditContext } from "./context"
 
 type TotalsSectionProps = {
-  currentSubtotal: number
+  amountPaid: number
+  newTotal: number
+  differenceDue: number
   currencyCode: string
-  newSubtotal: number
 }
 
 /**
  * Totals section displaying order and order edit subtotals.
  */
 function TotalsSection(props: TotalsSectionProps) {
-  const { currencyCode, newSubtotal, currentSubtotal } = props
-
-  const differenceDue = newSubtotal - currentSubtotal
+  const { currencyCode, amountPaid, newTotal, differenceDue } = props
 
   return (
     <>
       <div className="h-px w-full bg-grey-20 mb-6" />
       <div className="flex justify-between h-[40px] mb-2">
-        <span className="text-gray-500">Current Subtotal</span>
+        <span className="text-gray-500">Amount Paid</span>
         <span className="text-gray-900">
           {formatAmountWithSymbol({
-            amount: currentSubtotal,
+            amount: amountPaid,
             currency: currencyCode,
           })}
           <span className="text-gray-400"> {currencyCode.toUpperCase()}</span>
@@ -52,10 +50,10 @@ function TotalsSection(props: TotalsSectionProps) {
       </div>
 
       <div className="flex justify-between h-[40px] mb-2">
-        <span className="text-gray-900 font-semibold">New Subtotal</span>
+        <span className="text-gray-900 font-semibold">New Total</span>
         <span className="text-2xl font-semibold">
           {formatAmountWithSymbol({
-            amount: newSubtotal,
+            amount: newTotal,
             currency: currencyCode,
           })}
         </span>
@@ -117,7 +115,7 @@ export function AddProductVariant(props: AddProductVariantProps) {
             regionId={props.regionId}
             customerId={props.customerId}
             currencyCode={props.currencyCode}
-            isReplace={props.isReplace}
+            isReplace={!!props.isReplace}
             setSelectedVariants={setSelectedVariants}
           />
         </div>
@@ -143,6 +141,8 @@ type OrderEditModalProps = {
   regionId: string
   customerId: string
   currentSubtotal: number
+  paidTotal: number
+  refundedTotal: number
 }
 
 /**
@@ -156,6 +156,8 @@ function OrderEditModal(props: OrderEditModalProps) {
     currencyCode,
     regionId,
     customerId,
+    paidTotal,
+    refundedTotal,
   } = props
 
   const notification = useNotification()
@@ -167,9 +169,13 @@ function OrderEditModal(props: OrderEditModalProps) {
 
   const {
     mutateAsync: requestConfirmation,
+    isLoading: isRequestingConfirmation,
   } = useAdminRequestOrderEditConfirmation(orderEdit.id)
 
-  const { mutateAsync: updateOrderEdit } = useAdminUpdateOrderEdit(orderEdit.id)
+  const {
+    mutateAsync: updateOrderEdit,
+    isLoading: isUpdating,
+  } = useAdminUpdateOrderEdit(orderEdit.id)
 
   const { mutateAsync: deleteOrderEdit } = useAdminDeleteOrderEdit(orderEdit.id)
 
@@ -181,13 +187,14 @@ function OrderEditModal(props: OrderEditModalProps) {
 
   const onSave = async () => {
     try {
+      await requestConfirmation()
       if (note) {
         await updateOrderEdit({ internal_note: note })
       }
-      await requestConfirmation()
+
       notification("Success", "Order edit set as requested", "success")
     } catch (e) {
-      notification("Error", "Failed to request confirmation", "success")
+      notification("Error", "Failed to request confirmation", "error")
     }
     close()
   }
@@ -312,8 +319,9 @@ function OrderEditModal(props: OrderEditModalProps) {
           {showTotals && (
             <TotalsSection
               currencyCode={currencyCode}
-              currentSubtotal={currentSubtotal}
-              newSubtotal={orderEdit.subtotal}
+              amountPaid={paidTotal - refundedTotal}
+              newTotal={orderEdit.total}
+              differenceDue={orderEdit.total - paidTotal + refundedTotal}
             />
           )}
 
@@ -342,6 +350,8 @@ function OrderEditModal(props: OrderEditModalProps) {
               variant="primary"
               size="small"
               type="button"
+              disabled={isUpdating || isRequestingConfirmation}
+              loading={isUpdating || isRequestingConfirmation}
               onClick={onSave}
             >
               Save and close
@@ -354,69 +364,66 @@ function OrderEditModal(props: OrderEditModalProps) {
 }
 
 type OrderEditModalContainerProps = {
-  orderId: string
-  close: () => void
+  order: Order
 }
 
 function OrderEditModalContainer(props: OrderEditModalContainerProps) {
+  const { order } = props
   const notification = useNotification()
 
-  // TODO: replace with the list endpoint
-  const { order } = useAdminOrder(props.orderId, { expand: "edits" })
-
-  const [activeOrderEditId, setActiveOrderEditId] = useState<
-    string | undefined
-  >()
+  const {
+    hideModal,
+    orderEdits,
+    activeOrderEditId,
+    setActiveOrderEdit,
+  } = useContext(OrderEditContext)
 
   const { mutate: createOrderEdit } = useAdminCreateOrderEdit()
 
-  const { order_edit: orderEdit } = useAdminOrderEdit(
-    activeOrderEditId as string,
-    {
-      enabled: typeof activeOrderEditId === "string",
-    }
-  )
+  const orderEdit = orderEdits?.find((oe) => oe.id === activeOrderEditId)
 
-  // find an existing edit or create one if active order edit doesn't exist on the order
   useEffect(() => {
-    if (!order || activeOrderEditId) {
+    if (activeOrderEditId) {
       return
     }
 
-    const edit = order.edits.find((oe) => oe.status === "created")
+    createOrderEdit(
+      { order_id: order.id },
+      {
+        onSuccess: ({ order_edit }) => {
+          setActiveOrderEdit(order_edit.id)
+        },
+        onError: () => {
+          notification(
+            "Error",
+            "There is already active order edit on this order",
+            "error"
+          )
+          hideModal()
+        },
+      }
+    )
+  }, [activeOrderEditId, orderEdits])
 
-    if (!edit) {
-      createOrderEdit(
-        { order_id: order.id },
-        {
-          onSuccess: ({ order_edit }) => setActiveOrderEditId(order_edit.id),
-          onError: () => {
-            notification(
-              "Error",
-              "There is already active order edit on this order",
-              "error"
-            )
-            props.close()
-          },
-        }
-      )
-    } else {
-      setActiveOrderEditId(edit.id)
-    }
-  }, [order, activeOrderEditId])
+  const onClose = () => {
+    setActiveOrderEdit(undefined)
+    hideModal()
+  }
 
-  if (!orderEdit || !order) {
+  if (!orderEdit) {
     return null
   }
 
   return (
     <OrderEditModal
-      close={props.close}
+      close={onClose}
       orderEdit={orderEdit}
       currentSubtotal={order.subtotal}
       regionId={order.region_id}
       customerId={order.customer_id}
       currencyCode={order.currency_code}
+      paidTotal={order.paid_total}
+      refundedTotal={order.refunded_total}
     />
   )
 }

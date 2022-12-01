@@ -1,11 +1,12 @@
-import { navigate } from "gatsby"
 import { useAdminRegions } from "medusa-react"
 import React, { useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import Fade from "../../../../components/atoms/fade-wrapper"
 import Button from "../../../../components/fundamentals/button"
 import PlusIcon from "../../../../components/fundamentals/icons/plus-icon"
 import RadioGroup from "../../../../components/organisms/radio-group"
 import Section from "../../../../components/organisms/section"
+import { useAnalytics } from "../../../../context/analytics"
 import useToggleState from "../../../../hooks/use-toggle-state"
 import NewRegion from "../new"
 import RegionCard from "./region-card"
@@ -15,7 +16,13 @@ type Props = {
 }
 
 const RegionOverview = ({ id }: Props) => {
-  const { regions, isLoading } = useAdminRegions()
+  const navigate = useNavigate()
+  const { trackRegions } = useAnalytics()
+  const { regions, isLoading } = useAdminRegions(undefined, {
+    onSuccess: ({ regions, count }) => {
+      trackRegions({ regions: regions.map((r) => r.name), count })
+    },
+  })
   const [selectedRegion, setSelectedRegion] = React.useState<
     string | undefined
   >(id)
