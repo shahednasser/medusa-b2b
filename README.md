@@ -29,14 +29,14 @@ This project includes three directories:
 
 If you're only interested in the Medusa server, you can install it using the Medusa CLI tool.
 
-Check out the instructions in the [B2B Server README](https://github.com/shahednasser/b2b-server)
+Check out the instructions in the [B2B Server README](./b2b-server/README.md)
 
 ### Using GitHub Cloning
 
 1. Clone this repository:
 
 ```bash
-git clone https://github.com/shahednasser/medusa-b2b.git
+git clone --recurse-submodules https://github.com/shahednasser/medusa-b2b.git
 cd medusa-b2b
 ```
 
