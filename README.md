@@ -25,6 +25,14 @@ This project includes three directories:
 
 ## How to Install
 
+### Using Medusa CLI Tool
+
+If you're only interested in the Medusa server, you can install it using the Medusa CLI tool.
+
+Check out the instructions in the [B2B Server README](https://github.com/shahednasser/b2b-server)
+
+### Using GitHub Cloning
+
 1. Clone this repository:
 
 ```bash
