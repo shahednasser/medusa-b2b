@@ -29,7 +29,7 @@ This project includes three directories:
 
 If you're only interested in the Medusa server, you can install it using the Medusa CLI tool.
 
-Check out the instructions in the [B2B Server README](./b2b-server/README.md)
+Check out the instructions in the [B2B Server README](https://github.com/shahednasser/b2b-server/blob/master/README.md)
 
 ### Using GitHub Cloning
 
