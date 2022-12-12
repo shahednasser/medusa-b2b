@@ -85,4 +85,3 @@ npm run dev
 ## Other Resources
 
 - [Medusa Documentation](https://docs.medusajs.com/)
-- 
